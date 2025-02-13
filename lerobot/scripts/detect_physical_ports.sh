@@ -7,12 +7,12 @@ NOTICE: I made this for my Raspberry Pi and have made absolutely no effort whats
 to ensure that this works on any other system. 
 This was put together as an FYI for another user.
 
-That said, this script is only intended to detect and communicat information, not make system changes. 
+That said, this script is only intended to detect and communicate information, not make system changes. 
 
 In any case, here are the steps that you can perform manually:
 1. ls /dev/ttyACM* to find the USB ports (or, use lerobot/scripts/find_motors_bus_port.py)
 2. udevadm info -a -n /dev/ttyACM<your port> | grep -m1 KERNELS
-3. Create /etc/udev/rules.d/lerobot-arm-config.rules
+3. Create /etc/udev/rules.d/99-lerobot-arm-config.rules
 4. Add KERNELS lines in format: KERNELS==\"YOURINFOGOESHERE\", SYMLINK+=\"ttyACM_LEADER\"
 5. sudo udevadm trigger
 6. Modify your LeRobot config to use the new symlinks
@@ -116,7 +116,7 @@ Identification complete! Follow these steps to implement:
 ===========================================================
 
 *** STEP 1: Create the udev rules file using command:
-sudo nano /etc/udev/rules.d/lerobot-arm-config.rules
+sudo nano /etc/udev/rules.d/99-lerobot-arm-config.rules
 
 *** STEP 2: Add the following text to the file:
 $rules
@@ -134,6 +134,6 @@ the current ports. Even if you do not have LeRobot arms plugged in, your ports w
 be identified in this way.
 
 To remove this change and go back to standard behavior, simply run:
-sudo rm /etc/udev/rules.d/lerobot-arm-config.rules
+sudo rm /etc/udev/rules.d/99-lerobot-arm-config.rules
 sudo udevadm trigger
 """
