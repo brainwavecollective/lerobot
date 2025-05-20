@@ -93,7 +93,7 @@ def make_robot_from_config(config: RobotConfig, policy=None):
             # Create a deep copy to avoid modifying the original
             config = deepcopy(config)
             
-            # Get camera configuration class from one of the existing cameras
+            # Get camera configuration class
             from lerobot.common.robot_devices.cameras.configs import OpenCVCameraConfig
             
             # Create mock cameras with names from the policy
@@ -105,11 +105,17 @@ def make_robot_from_config(config: RobotConfig, policy=None):
                     fps=30,
                     width=640,
                     height=480,
-                    mock=True
+                    mock=True  # Ensure mock=True
                 )
             
             logging.info(f"Using camera names from policy for mock robot: {list(mock_cameras.keys())}")
             config.cameras = mock_cameras
+            
+            # The __post_init__ method should propagate mock=True to all components
+            # since config.mock is already True, but let's call it explicitly
+            # to ensure this happens even if components were changed
+            if hasattr(config, "__post_init__"):
+                config.__post_init__()
     
     # Original robot creation logic
     if isinstance(config, ManipulatorRobotConfig):
