@@ -409,22 +409,55 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
-    # Load policy first if in record mode with mock=true and policy path provided
-    policy = None
+    # Special handling for record mode with mock and policy
     if (cfg.robot.mock and 
         isinstance(cfg.control, RecordControlConfig) and 
-        cfg.control.policy is not None):
-        policy = make_policy(cfg.control.policy)
-        logging.info("Loaded policy for camera name adaptation in mock mode")
+        cfg.control.policy is not None and
+        not cfg.control.resume):  # Only do this for new recordings, not resumed ones
         
-        # Store the policy for later use to avoid reloading
-        cfg.control._cached_policy = policy
+        import tempfile
+        from pathlib import Path
+        import uuid
         
-    # Create robot, potentially using policy for camera name adaptation
-    robot = make_robot_from_config(cfg.robot, policy)
+        # Create a robot first (will be replaced later)
+        initial_robot = make_robot_from_config(cfg.robot)
+        
+        # Create a temporary dataset just to get metadata
+        temp_repo_id = f"temp_{uuid.uuid4().hex}"
+        temp_dir = Path(tempfile.gettempdir()) / temp_repo_id
+        
+        try:
+            # Create minimal dataset for metadata
+            temp_dataset = LeRobotDataset.create(
+                temp_repo_id,
+                cfg.control.fps,
+                root=temp_dir,
+                robot=initial_robot,
+                use_videos=cfg.control.video,
+                # Don't start image writer
+                image_writer_processes=0,
+                image_writer_threads=0,
+            )
+            
+            # Load the policy with metadata
+            policy = make_policy(cfg.control.policy, ds_meta=temp_dataset.meta)
+            logging.info("Loaded policy for camera name adaptation in mock mode")
+            
+            # Create the robot with adapted camera names
+            robot = make_robot_from_config(cfg.robot, policy)
+            
+            # Cache the policy for later use
+            cfg.control._cached_policy = policy
+        finally:
+            # Clean up temporary directory
+            import shutil
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+    else:
+        # Normal robot creation for other cases
+        robot = make_robot_from_config(cfg.robot)
 
-    # TODO(Steven): Blueprint for fixed window size
-
+    # Now proceed with the regular control flow
     if isinstance(cfg.control, CalibrateControlConfig):
         calibrate(robot, cfg.control)
     elif isinstance(cfg.control, TeleoperateControlConfig):
@@ -437,7 +470,6 @@ def control_robot(cfg: ControlPipelineConfig):
         replay(robot, cfg.control)
     elif isinstance(cfg.control, RemoteRobotConfig):
         from lerobot.common.robot_devices.robots.lekiwi_remote import run_lekiwi
-
         _init_rerun(control_config=cfg.control, session_name="lerobot_control_loop_remote")
         run_lekiwi(cfg.robot)
 
