@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from typing import Protocol
+from copy import deepcopy
+import logging
 
 from lerobot.common.robot_devices.robots.configs import (
     AlohaRobotConfig,
@@ -69,18 +71,55 @@ def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:
         raise ValueError(f"Robot type '{robot_type}' is not available.")
 
 
-def make_robot_from_config(config: RobotConfig):
+def make_robot_from_config(config: RobotConfig, policy=None):
+    """
+    Create a robot from a configuration.
+    
+    Args:
+        config: The robot configuration
+        policy: Optional policy to extract camera names from for mock mode
+        
+    Returns:
+        A robot instance
+    """
+    # If in mock mode and a policy is provided, adapt camera names
+    if config.mock and policy is not None and hasattr(config, "cameras"):
+        from lerobot.common.policies.utils import extract_camera_names_from_policy
+        
+        # Extract camera names from policy
+        camera_names = extract_camera_names_from_policy(policy)
+        
+        if camera_names:
+            # Create a deep copy to avoid modifying the original
+            config = deepcopy(config)
+            
+            # Get camera configuration class from one of the existing cameras
+            from lerobot.common.robot_devices.cameras.configs import OpenCVCameraConfig
+            
+            # Create mock cameras with names from the policy
+            mock_cameras = {}
+            for camera_name in camera_names:
+                # Create a mock camera with the policy's name
+                mock_cameras[camera_name] = OpenCVCameraConfig(
+                    camera_index=0,  # Doesn't matter for mock
+                    fps=30,
+                    width=640,
+                    height=480,
+                    mock=True
+                )
+            
+            logging.info(f"Using camera names from policy for mock robot: {list(mock_cameras.keys())}")
+            config.cameras = mock_cameras
+    
+    # Original robot creation logic
     if isinstance(config, ManipulatorRobotConfig):
         from lerobot.common.robot_devices.robots.manipulator import ManipulatorRobot
-
         return ManipulatorRobot(config)
     elif isinstance(config, LeKiwiRobotConfig):
         from lerobot.common.robot_devices.robots.mobile_manipulator import MobileManipulator
-
         return MobileManipulator(config)
     else:
         from lerobot.common.robot_devices.robots.stretch import StretchRobot
-
         return StretchRobot(config)
 
 

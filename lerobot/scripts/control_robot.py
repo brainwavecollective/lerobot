@@ -272,8 +272,10 @@ def record(
         )
 
     # Load pretrained policy
-    policy = None if cfg.policy is None else make_policy(cfg.policy, ds_meta=dataset.meta)
-
+    policy = getattr(cfg, "_cached_policy", None)
+    if policy is None and cfg.policy is not None:
+        policy = make_policy(cfg.policy, ds_meta=dataset.meta)
+        
     if not robot.is_connected:
         robot.connect()
 
@@ -407,7 +409,19 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
-    robot = make_robot_from_config(cfg.robot)
+    # Load policy first if in record mode with mock=true and policy path provided
+    policy = None
+    if (cfg.robot.mock and 
+        isinstance(cfg.control, RecordControlConfig) and 
+        cfg.control.policy is not None):
+        policy = make_policy(cfg.control.policy)
+        logging.info("Loaded policy for camera name adaptation in mock mode")
+        
+        # Store the policy for later use to avoid reloading
+        cfg.control._cached_policy = policy
+        
+    # Create robot, potentially using policy for camera name adaptation
+    robot = make_robot_from_config(cfg.robot, policy)
 
     # TODO(Steven): Blueprint for fixed window size
 

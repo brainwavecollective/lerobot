@@ -65,3 +65,35 @@ def get_output_shape(module: nn.Module, input_shape: tuple) -> tuple:
     with torch.inference_mode():
         output = module(dummy_input)
     return tuple(output.shape)
+
+def extract_camera_names_from_policy(policy):
+    """
+    Extract camera names from a policy's normalization statistics.
+    
+    Args:
+        policy: The policy object containing normalization statistics
+        
+    Returns:
+        list: A list of camera names found in the policy's normalization statistics
+    """
+    import logging
+    import re
+    
+    camera_names = set()
+    state_dict = policy.state_dict()
+    
+    # Regular expression to extract camera names from buffer keys
+    # Matches patterns like "normalize_inputs.buffer_observation_images_laptop.mean"
+    camera_pattern = r"normalize_inputs\.buffer_observation_images_(\w+)\.(mean|std)"
+    
+    for key in state_dict.keys():
+        match = re.match(camera_pattern, key)
+        if match:
+            camera_name = match.group(1)
+            camera_names.add(camera_name)
+    
+    if camera_names:
+        logging.info(f"Extracted camera names from policy: {list(camera_names)}")
+    
+    return list(camera_names)
+    
