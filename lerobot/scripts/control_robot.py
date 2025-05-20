@@ -410,23 +410,23 @@ def control_robot(cfg: ControlPipelineConfig):
     logging.info(pformat(asdict(cfg)))
 
     # Special handling for record mode with mock and policy
-    if (cfg.robot.mock and 
-        isinstance(cfg.control, RecordControlConfig) and 
+    if (cfg.robot.mock and
+        isinstance(cfg.control, RecordControlConfig) and
         cfg.control.policy is not None and
         not cfg.control.resume):  # Only do this for new recordings, not resumed ones
-        
+
         import tempfile
         from pathlib import Path
         import uuid
-        
-        # Create a robot first (will be replaced later)
-        initial_robot = make_robot_from_config(cfg.robot)
-        
+
         # Create a temporary dataset just to get metadata
         temp_repo_id = f"temp_{uuid.uuid4().hex}"
         temp_dir = Path(tempfile.gettempdir()) / temp_repo_id
         
         try:
+            # Create a simple robot first (will be replaced later)
+            initial_robot = make_robot_from_config(cfg.robot)
+            
             # Create minimal dataset for metadata
             temp_dataset = LeRobotDataset.create(
                 temp_repo_id,
@@ -438,11 +438,11 @@ def control_robot(cfg: ControlPipelineConfig):
                 image_writer_processes=0,
                 image_writer_threads=0,
             )
-            
+
             # Load the policy with metadata
             policy = make_policy(cfg.control.policy, ds_meta=temp_dataset.meta)
             logging.info("Loaded policy for camera name adaptation in mock mode")
-            
+
             # Create the robot with adapted camera names
             robot = make_robot_from_config(cfg.robot, policy)
             
