@@ -453,9 +453,9 @@ class ManipulatorRobot:
             # Mode=0 for Position Control
             self.follower_arms[name].write("Mode", 0)
             # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.follower_arms[name].write("P_Coefficient", 16)
+            self.follower_arms[name].write("P_Coefficient", 28)
             # Set I_Coefficient and D_Coefficient to default value 0 and 32
-            self.follower_arms[name].write("I_Coefficient", 0)
+            self.follower_arms[name].write("I_Coefficient", 3)
             self.follower_arms[name].write("D_Coefficient", 32)
             # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
             # which is mandatory for Maximum_Acceleration to take effect after rebooting.
@@ -464,6 +464,9 @@ class ManipulatorRobot:
             # the motors. Note: this configuration is not in the official STS3215 Memory Table
             self.follower_arms[name].write("Maximum_Acceleration", 254)
             self.follower_arms[name].write("Acceleration", 254)
+
+            if hasattr(self.follower_arms[name], "write_deadband"):
+              self.follower_arms[name].write_deadband(1.0)  # 1 degree deadband
 
     def teleop_step(
         self, record_data=False
@@ -648,3 +651,4 @@ class ManipulatorRobot:
     def __del__(self):
         if getattr(self, "is_connected", False):
             self.disconnect()
+
